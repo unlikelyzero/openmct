@@ -445,8 +445,8 @@ export default {
                     return {
                     };
                 }
-            }
-            const actionCollection = this.openmct.actions.get(contextualObjectPath, actionsViewContext);;
+            };
+            const actionCollection = this.openmct.actions.get(contextualObjectPath, actionsViewContext);
             const preview = new Vue({
                 components: {
                     PreviewHeader
