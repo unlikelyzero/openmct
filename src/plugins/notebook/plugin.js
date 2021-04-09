@@ -3,11 +3,8 @@ import Notebook from './components/Notebook.vue';
 import NotebookSnapshotIndicator from './components/NotebookSnapshotIndicator.vue';
 import SnapshotContainer from './snapshot-container';
 import Vue from 'vue';
-import { notebookImageMigration } from './utils/notebook-migration';
 
 let installed = false;
-
-window.notebookImageMigration = notebookImageMigration;
 
 export default function NotebookPlugin() {
     return function install(openmct) {
