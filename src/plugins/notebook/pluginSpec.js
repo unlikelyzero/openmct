@@ -23,6 +23,7 @@
 import { createOpenMct, createMouseEvent, resetApplicationState } from 'utils/testing';
 import NotebookPlugin from './plugin';
 import Vue from 'vue';
+import { mountCallback } from '@cypress/vue';
 
 let openmct;
 let notebookDefinition;
@@ -61,6 +62,7 @@ describe("Notebook plugin:", () => {
         openmct.start(appHolder);
 
         document.body.append(appHolder);
+        mountCallback(notebook);
     });
 
     afterAll(() => {
@@ -68,7 +70,8 @@ describe("Notebook plugin:", () => {
         resetApplicationState(openmct);
     });
 
-    it("has type as Notebook", () => {
+    it.only("has type as Notebook", () => {
+        cy.wait(1000);
         expect(notebookDefinition.name).toEqual('Notebook');
     });
 

@@ -55,7 +55,7 @@ export function spyOnBuiltins(functionNames, object = window) {
             object,
             nativeFunction: object[functionName]
         });
-        spyOn(object, functionName);
+        jasmine.spyOn(object, functionName);
     });
 }
 

@@ -1,3 +1,5 @@
+/*global spyOn*/
+
 /*****************************************************************************
  * Open MCT, Copyright (c) 2014-2021, United States Government
  * as represented by the Administrator of the National Aeronautics and Space
@@ -20,6 +22,7 @@
  * at runtime from the About dialog for additional information.
  *****************************************************************************/
 import TablePlugin from './plugin.js';
+import { mount } from '@cypress/vue';
 import Vue from 'vue';
 import {
     createOpenMct,
@@ -57,7 +60,7 @@ describe("the plugin", () => {
         tablePlugin = new TablePlugin();
         openmct.install(tablePlugin);
 
-        spyOn(openmct.telemetry, 'request').and.returnValue(Promise.resolve([]));
+        //spyOn(openmct.telemetry, 'request').and.returnValue(Promise.resolve([]));
 
         element = document.createElement('div');
         child = document.createElement('div');
@@ -72,10 +75,10 @@ describe("the plugin", () => {
             creatable: true
         });
 
-        spyOnBuiltins(['requestAnimationFrame']);
+        /*spyOnBuiltins(['requestAnimationFrame']);
         window.requestAnimationFrame.and.callFake((callBack) => {
             callBack();
-        });
+        });*/
 
         openmct.on('start', done);
         openmct.startHeadless();
@@ -88,7 +91,8 @@ describe("the plugin", () => {
     describe("defines a table object", function () {
         it("that is creatable", () => {
             let tableType = openmct.types.get('table');
-            expect(tableType.definition.creatable).toBe(true);
+            mount('tableType')
+            //expect(tableType.definition.creatable).toBe(true);
         });
     });
 
@@ -105,7 +109,8 @@ describe("the plugin", () => {
 
         const applicableViews = openmct.objectViews.get(testTelemetryObject, []);
         let tableView = applicableViews.find((viewProvider) => viewProvider.key === 'table');
-        expect(tableView).toBeDefined();
+        mount(tableView)
+        //expect(tableView).toBeDefined();
     });
 
     describe("The table view", () => {
@@ -185,6 +190,12 @@ describe("the plugin", () => {
         it("Renders a row for every telemetry datum returned", () => {
             let rows = element.querySelectorAll('table.c-telemetry-table__body tr');
             expect(rows.length).toBe(3);
+        });
+
+        it.only("Renders a row for every telemetry datum returned", () => {
+            mount(table);
+            cy.wait(1000)
+            cy.get('table').contains('3');
         });
 
         it("Renders a column for every item in telemetry metadata", () => {
