@@ -24,11 +24,16 @@
     <button
       class="c-create-button c-button--menu c-button--major icon-plus"
       :aria-disabled="isEditing"
+      :aria-describedby="createButtonDescriptionId"
       aria-labelledby="create-button-label"
+      :title="createButtonDisabledHelpText"
       @click.prevent.stop="showCreateMenu"
     >
       <span id="create-button-label" class="c-button__label">Create</span>
     </button>
+    <p v-if="isEditing" :id="createButtonDescriptionId" class="c-create-button__help-text">
+      {{ createButtonDisabledHelpText }}
+    </p>
   </div>
 </template>
 <script>
@@ -45,6 +50,16 @@ export default {
     };
   },
   computed: {
+    createButtonDescriptionId() {
+      return 'create-button-disabled-help';
+    },
+    createButtonDisabledHelpText() {
+      if (!this.isEditing) {
+        return undefined;
+      }
+
+      return 'Finish editing the current object before creating another.';
+    },
     sortedItems() {
       let items = this.getItems();
 
@@ -87,6 +102,10 @@ export default {
       return Object.values(this.menuItems);
     },
     showCreateMenu() {
+      if (this.isEditing) {
+        return;
+      }
+
       const elementBoundingClientRect = this.$refs.createButton.getBoundingClientRect();
       const x = elementBoundingClientRect.x;
       const y = elementBoundingClientRect.y + elementBoundingClientRect.height;
@@ -107,3 +126,12 @@ export default {
   }
 };
 </script>
+<style scoped>
+.c-create-button__help-text {
+  margin-top: 4px;
+  max-width: 220px;
+  color: var(--colorBodyFg);
+  font-size: 0.8rem;
+  line-height: 1.2;
+}
+</style>
