@@ -110,18 +110,28 @@
           class="l-browse-bar__view-switcher c-ctrl-wrapper c-ctrl-wrapper--menus-left"
         >
           <button
+            ref="saveButton"
             class="c-button--menu c-button--major icon-save"
-            title="Save"
+            title="Save options"
             aria-label="Save"
+            aria-haspopup="menu"
+            :aria-expanded="showSaveMenu ? 'true' : 'false'"
+            :aria-controls="saveMenuId"
             @click.stop="toggleSaveMenu"
           ></button>
-          <div v-show="showSaveMenu" class="c-menu">
+          <div v-show="showSaveMenu" :id="saveMenuId" class="c-menu" role="menu">
             <ul>
-              <li class="icon-save" title="Save and Finish Editing" @click="saveAndFinishEditing">
+              <li
+                class="icon-save"
+                role="menuitem"
+                title="Save and Finish Editing"
+                @click="saveAndFinishEditing"
+              >
                 Save and Finish Editing
               </li>
               <li
                 class="icon-save"
+                role="menuitem"
                 title="Save and Continue Editing"
                 @click="saveAndContinueEditing"
               >
@@ -187,7 +197,8 @@ export default {
       isEditing: this.openmct.editor.isEditing(),
       notebookEnabled: this.openmct.types.get('notebook'),
       statusBarItems: [],
-      status: ''
+      status: '',
+      saveMenuId: 'browse-bar-save-menu'
     };
   },
   computed: {
@@ -331,9 +342,7 @@ export default {
     document.addEventListener('click', this.closeViewAndSaveMenu);
     this.promptUserbeforeNavigatingAway = this.promptUserbeforeNavigatingAway.bind(this);
     window.addEventListener('beforeunload', this.promptUserbeforeNavigatingAway);
-    this.openmct.editor.on('isEditing', (isEditing) => {
-      this.isEditing = isEditing;
-    });
+    this.openmct.editor.on('isEditing', this.handleEditingStateChange);
   },
   beforeUnmount() {
     if (this.mutationObserver) {
@@ -350,6 +359,7 @@ export default {
 
     document.removeEventListener('click', this.closeViewAndSaveMenu);
     window.removeEventListener('beforeunload', this.promptUserbeforeNavigatingAway);
+    this.openmct.editor.off('isEditing', this.handleEditingStateChange);
   },
   methods: {
     toggleSaveMenu() {
@@ -358,6 +368,15 @@ export default {
     closeViewAndSaveMenu() {
       this.showViewMenu = false;
       this.showSaveMenu = false;
+    },
+    handleEditingStateChange(isEditing) {
+      this.isEditing = isEditing;
+
+      if (isEditing) {
+        this.$nextTick(() => {
+          this.$refs.saveButton?.focus();
+        });
+      }
     },
     updateName(event) {
       if (event.target.innerText !== this.domainObject.name && event.target.innerText.match(/\S/)) {
@@ -416,7 +435,8 @@ export default {
         event.returnValue = '';
       }
     },
-    saveAndFinishEditing() {
+    saveAndFinishEditing({ continueEditing = false } = {}) {
+      this.showSaveMenu = false;
       let dialog = this.openmct.overlays.progressDialog({
         progressPerc: null,
         message:
@@ -433,7 +453,14 @@ export default {
         .save()
         .then(() => {
           dialog.dismiss();
-          this.openmct.notifications.info('Save successful');
+          if (continueEditing) {
+            this.openmct.notifications.info(
+              'Save successful. You are still editing. Select Save and Finish Editing to enable Create.'
+            );
+            this.openmct.editor.edit();
+          } else {
+            this.openmct.notifications.info('Save successful');
+          }
         })
         .catch((error) => {
           dialog.dismiss();
@@ -443,9 +470,7 @@ export default {
         });
     },
     saveAndContinueEditing() {
-      this.saveAndFinishEditing().then(() => {
-        this.openmct.editor.edit();
-      });
+      return this.saveAndFinishEditing({ continueEditing: true });
     },
     goToParent() {
       this.openmct.router.navigate(this.parentUrl);

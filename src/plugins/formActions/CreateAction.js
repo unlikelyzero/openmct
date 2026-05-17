@@ -88,7 +88,9 @@ class CreateAction extends PropertiesAction {
 
       this._navigateAndEdit(this.domainObject, parentDomainObjectPath);
 
-      this.openmct.notifications.info('Save successful');
+      this.openmct.notifications.info(
+        'Save successful. You are still editing. Select Save and Finish Editing to enable Create.'
+      );
     } catch (err) {
       console.error(err);
       this.openmct.notifications.error(`Error saving objects: ${err}`);
