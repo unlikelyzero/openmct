@@ -32,10 +32,13 @@
  * - Every build asset listed in the precache manifest is fetched and stored in
  *   a cache named after the build version during `install`. Requests for those
  *   assets are then served cache-first, so the application loads offline.
- * - Navigation requests (page loads) are served network-first. Successful
- *   responses are cached so the page can be reopened offline; if the network is
- *   unavailable and no copy of the requested page exists, the precached
- *   `index.html` is used as a fallback.
+ * - Navigation requests (page loads) are served network-first. A successful
+ *   response is cached so the page can be reopened offline, but only when the
+ *   response is safe to persist: a response guarded by `Cache-Control`
+ *   directives such as `no-store`, `private` or `no-cache` may contain
+ *   authenticated or user-specific data and is never written to the cache.
+ *   If the network is unavailable and no copy of the requested page exists,
+ *   the precached `index.html` is used as a fallback.
  * - Every other request (cross-origin requests, non-GET requests, telemetry
  *   and persistence API calls, etc.) is passed straight to the network and is
  *   never cached.
@@ -45,6 +48,23 @@
 export const CACHE_NAME_PREFIX = 'openmct-pwa-';
 export const NAVIGATION_FALLBACK_ASSET = 'index.html';
 export const SKIP_WAITING_MESSAGE_TYPE = 'SKIP_WAITING';
+
+/**
+ * `Cache-Control` response directives that make a response unsuitable for
+ * storage in the service worker cache, per RFC 9111:
+ *
+ * - `no-store`: the server explicitly forbids storing the response anywhere.
+ * - `private`: the response is intended for a single user and must not be
+ *   stored by a shared cache. The service worker cache outlives the page (and
+ *   potentially the session) that requested it, so it is treated as a shared
+ *   cache here.
+ * - `no-cache`: a stored copy must be revalidated with the server before it
+ *   can be reused. Revalidation is impossible while offline, so a stored copy
+ *   could never legitimately be served and is not stored at all.
+ *
+ * @type {Set<string>}
+ */
+const NON_CACHEABLE_DIRECTIVES = new Set(['no-store', 'no-cache', 'private']);
 
 /**
  * @typedef {Object} PrecacheManifest
@@ -141,12 +161,23 @@ export function createServiceWorkerHandlers({ manifest, scriptUrl, caches, fetch
 
     try {
       const response = await fetch(request);
-      if (response.ok && !response.redirected) {
+
+      // SECURITY: only persist responses that are safe to cache. A navigation
+      // response guarded by `Cache-Control: no-store`, `private` or
+      // `no-cache` may contain authenticated or user-specific data; writing
+      // it to the persistent Cache Storage would expose that data to later
+      // (potentially unauthenticated) offline sessions and to anyone able to
+      // inspect the browser profile. The live response is still returned to
+      // the browser untouched.
+      if (isCacheableNavigationResponse(response)) {
         await cache.put(cacheKey, response.clone());
       }
 
       return response;
     } catch (error) {
+      // Network-first fallback for offline use: serve the page as it was seen
+      // last time, otherwise the precached application shell. Pages withheld
+      // from the cache above can, by design, never be served here.
       const cachedResponse =
         (await cache.match(cacheKey)) ?? (await cache.match(navigationFallbackUrl));
       if (cachedResponse) {
@@ -178,6 +209,43 @@ export function createServiceWorkerHandlers({ manifest, scriptUrl, caches, fetch
     handleFetch,
     cacheName
   };
+}
+
+/**
+ * Determines whether a navigation response may be written to the offline
+ * cache. Only complete, non-redirected responses that are not explicitly
+ * guarded against storage are persisted; anything else is passed through to
+ * the browser without being cached.
+ *
+ * @param {Response} response
+ * @returns {boolean}
+ */
+function isCacheableNavigationResponse(response) {
+  return (
+    response.status === 200 &&
+    !response.redirected &&
+    !cacheControlForbidsCaching(response.headers.get('Cache-Control'))
+  );
+}
+
+/**
+ * Parses a `Cache-Control` header value and reports whether it contains a
+ * directive that forbids storing the response. Directive matching is
+ * case-insensitive and ignores directive arguments such as the field list in
+ * `no-cache="Set-Cookie"`, in line with RFC 9111.
+ *
+ * @param {string | null} cacheControl The raw `Cache-Control` header value, if any.
+ * @returns {boolean} `true` when the response must not be cached.
+ */
+function cacheControlForbidsCaching(cacheControl) {
+  if (!cacheControl) {
+    return false;
+  }
+
+  return cacheControl
+    .split(',')
+    .map((directive) => directive.split('=', 1)[0].trim().toLowerCase())
+    .some((directive) => NON_CACHEABLE_DIRECTIVES.has(directive));
 }
 
 /**
