@@ -24,6 +24,7 @@ truth and this one goes stale if it duplicates them.
 | Writing and running Playwright tests, fixtures, CI architecture | [e2e/README.md](e2e/README.md) |
 | Security policy and vulnerability reporting | [SECURITY.md](SECURITY.md) |
 | Release process and notable-change policy | [docs/src/process/release.md](docs/src/process/release.md) |
+| Common coding pitfalls (clean code, function design, Vue and API usage) | [docs/src/process/common-coding-pitfalls.md](docs/src/process/common-coding-pitfalls.md) |
 
 ## Attribution
 
@@ -118,66 +119,15 @@ being wired in centrally. `src/plugins/plugins.js` is the master export of built
 (as `openmct.plugins.X`), most of which are opt-in. A handful are installed unconditionally
 in the `MCT` constructor; those are core, not optional.
 
-### Key APIs (`src/api/*`)
+## Rules
 
-- **ObjectAPI** (`objects`) — CRUD and identification for *domain objects*: anything that
-  can appear in the tree (telemetry points, layouts, folders), backed by pluggable
-  persistence providers
-- **CompositionAPI** (`composition`) — parent/child containment between domain objects,
-  which determines what nests under what in the tree
-- **TelemetryAPI** (`telemetry`) — registers telemetry providers and the request/subscribe
-  interfaces for streaming and historical data
-- **TypeRegistry** (`types`) — defines domain object types: creatable or not, their forms,
-  icons, and initializers
-- **TimeAPI** (`time`) — the global time/clock context (bounds, ticking, time systems) that
-  most views subscribe to
-- **ActionsAPI**, **StatusAPI**, **UserAPI**, **AnnotationAPI**, **FaultManagementAPI**,
-  **FormsAPI** — action menus, object status decorations, user/role awareness,
-  tagging/annotations, fault workflows, and dynamic form generation
-
-Registries for pluggable UI surfaces: `ViewRegistry` (object and inspector views),
-`ToolbarRegistry` (edit-mode toolbars), and `InspectorViewRegistry`. Views are chosen from
-object type plus the current `Selection` (`src/selection/Selection.js`).
-
-### Directory layout
-
-- `src/api/` — the core, mostly-stable public APIs described above
-- `src/plugins/` — the bulk of features (70+ plugins), one directory each, typically a
-  `plugin.js` (the install function), a `pluginSpec.js` (Jasmine tests for the whole
-  plugin), and feature-organized subfolders
-- `src/ui/` — the Vue application shell: `layout/` (top-level `AppLayout.vue`, tree,
-  toolbar), `router/` (`ApplicationRouter`, `Browse`), `inspector/`, `preview/`,
-  `registries/`, `composables/`
-- `src/selection/` — cross-cutting selection state the inspector and toolbar react to
-- `example/` — sample plugins (data generators, example fault/user/imagery providers) used
-  for local dev and as reference implementations for third-party plugin authors. Treated
-  as legacy-style code and excluded from the strict lint config as `LEGACY_FILES`.
-- `e2e/` — a separate npm workspace holding all Playwright tests, fixtures
-  (`appActions.js`, `pluginFixtures.js`), and configs per test flavor
-
-### Public API surface
-
-[API.md](API.md) is the canonical reference for the public plugin-authoring API. Consult it
-before changing any signature under `src/api/` — those are contracts for external plugin
-authors, not just internal callers, and changes require senior developer approval.
-TypeScript declarations are generated (`emitDeclarationOnly`) from `src/api/**/*.js` only,
-per `tsconfig.json`.
-
-## Conventions worth repeating
-
-Full code and commit standards live in [CONTRIBUTING.md](CONTRIBUTING.md). These few are
-called out because linters do not enforce them and generated code commonly gets them
-wrong:
-
-- Organize by feature, not by type. A plugin's subfolders each hold their own `.js`/`.vue`
-  pair rather than a global `components/` or `collections/` folder.
-- Colocate unit specs with the code they test. There is no parallel test tree.
-- Prefer named `function` declarations over `const fn = () => {}`.
-- Use ES6 `class` and inheritance, never the prototypal pattern.
-- No magic literals — pull them into named constants.
-- Commit subjects take a bracketed subsystem tag (`[Documentation] ...`), max 54
-  characters, with body lines wrapped at 72.
-- Every PR references its issue (`Addresses #1234` / `Closes #1234`).
-
-Deviating from any documented convention requires two-party agreement between author and
-reviewer.
+- [API.md](API.md) is the canonical reference for the public plugin-authoring API. Consult
+  it before changing any signature under `src/api/`. Those are contracts for external
+  plugin authors, not just internal callers, and changes require senior developer
+  approval. TypeScript declarations are generated (`emitDeclarationOnly`) from
+  `src/api/**/*.js` only, per `tsconfig.json`.
+- Generated code must follow
+  [docs/src/process/common-coding-pitfalls.md](docs/src/process/common-coding-pitfalls.md)
+  in addition to the standards in [CONTRIBUTING.md](CONTRIBUTING.md).
+- Deviating from any documented convention requires two-party agreement between author
+  and reviewer.
